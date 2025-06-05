@@ -1,0 +1,921 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Easy Store Manager - WooCommerce Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vue@3.2.47/dist/vue.global.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#3b82f6',
+                        secondary: '#93c5fd',
+                        accent: '#2563eb',
+                        dark: '#1e293b',
+                        'dark-card': '#334155',
+                        light: '#f8fafc',
+                        'light-card': '#f1f5f9'
+                    }
+                }
+            },
+            darkMode: 'class'
+        }
+    </script>
+    <style>
+        .sidebar-collapsed .sidebar-text {
+            display: none;
+        }
+        .product-row:hover {
+            background-color: rgba(59, 130, 246, 0.05);
+        }
+        .dashboard-card {
+            transition: transform 0.2s;
+        }
+        .dashboard-card:hover {
+            transform: translateY(-5px);
+        }
+        .progress-bar {
+            transition: width 0.5s;
+        }
+        .fade-enter-active, .fade-leave-active {
+            transition: opacity 0.3s;
+        }
+        .fade-enter, .fade-leave-to {
+            opacity: 0;
+        }
+        .min-w-200 {
+            min-width: 200px;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 dark:bg-dark">
+    <div id="app" class="flex h-screen transition-all duration-300">
+        <!-- Mobile Top Bar -->
+        <div class="fixed top-0 left-0 right-0 z-10 bg-white dark:bg-dark-card shadow-md md:hidden">
+            <div class="flex items-center justify-between p-4">
+                <button @click="sidebarCollapsed = !sidebarCollapsed" class="text-gray-600 dark:text-white">
+                    <i class="fa-solid fa-bars text-xl"></i>
+                </button>
+                <div class="flex items-center space-x-4">
+                    <h1 class="text-lg font-bold text-accent dark:text-white">Easy Store Manager</h1>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <button class="text-gray-600 dark:text-white">
+                        <i class="fa-solid fa-bell"></i>
+                    </button>
+                    <div class="flex items-center space-x-2">
+                        <div class="w-8 h-8 bg-primary rounded-full flex items-center justify-center text-white">
+                            {{ userInitials }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar Navigation -->
+        <div 
+            :class="['fixed md:relative z-20 bg-white dark:bg-dark-card h-full shadow-lg md:shadow-none transition-all duration-300', 
+                     sidebarCollapsed ? 'w-16 sidebar-collapsed' : 'w-64']">
+            <div class="h-full flex flex-col">
+                <div class="p-4 border-b border-gray-200 dark:border-gray-700 flex-shrink-0 hidden md:flex">
+                    <div class="flex items-center space-x-3" v-if="!sidebarCollapsed">
+                        <div class="w-10 h-10 bg-primary rounded-full flex items-center justify-center text-white">
+                            {{ userInitials }}
+                        </div>
+                        <div>
+                            <h2 class="font-bold text-lg text-gray-800 dark:text-white">Easy Store Manager</h2>
+                            <p class="text-xs text-gray-500 dark:text-gray-400">Admin Panel</p>
+                        </div>
+                    </div>
+                    <button @click="sidebarCollapsed = !sidebarCollapsed" class="ml-auto text-gray-600 dark:text-white">
+                        <i :class="['fa-solid', sidebarCollapsed ? 'fa-chevron-right' : 'fa-chevron-left']"></i>
+                    </button>
+                </div>
+                
+                <div class="flex-grow overflow-y-auto py-4">
+                    <nav>
+                        <div class="px-4 mb-6">
+                            <h3 class="uppercase text-xs font-semibold text-gray-500 dark:text-gray-400 tracking-wider sidebar-text" v-if="!sidebarCollapsed">Navigation</h3>
+                        </div>
+                        <ul>
+                            <li v-for="(tab, index) in tabs" :key="index">
+                                <a href="#" 
+                                   @click.prevent="activeTab = tab.name"
+                                   :class="['flex items-center py-3 px-4 transition-colors',
+                                            activeTab === tab.name 
+                                                ? 'bg-primary text-white dark:bg-accent' 
+                                                : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800']">
+                                    <i :class="['mr-3 text-lg', tab.icon]"></i>
+                                    <span class="sidebar-text">{{ tab.label }}</span>
+                                    <span v-if="tab.name === 'orders' && pendingOrders > 0" 
+                                          class="ml-auto bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs">
+                                        {{ pendingOrders }}
+                                    </span>
+                                </a>
+                            </li>
+                        </ul>
+                    </nav>
+                    
+                    <div class="px-4 mt-8">
+                        <h3 class="uppercase text-xs font-semibold text-gray-500 dark:text-gray-400 tracking-wider sidebar-text" v-if="!sidebarCollapsed">Preferences</h3>
+                        <ul class="mt-2">
+                            <li>
+                                <a href="#" @click.prevent="toggleDarkMode" class="flex items-center py-3 px-4 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800">
+                                    <i class="mr-3 text-lg" :class="darkMode ? 'fa-solid fa-sun' : 'fa-solid fa-moon'"></i>
+                                    <span class="sidebar-text">{{ darkMode ? 'Light Mode' : 'Dark Mode' }}</span>
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <div class="p-4 border-t border-gray-200 dark:border-gray-700 flex-shrink-0">
+                    <a href="#" class="flex items-center text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white">
+                        <i class="fa-solid fa-right-from-bracket mr-3 sidebar-text"></i>
+                        <span class="sidebar-text">Logout</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content Area -->
+        <div :class="['flex-1 overflow-auto pt-16 md:pt-0', sidebarCollapsed ? 'md:ml-16' : 'md:ml-64']">
+            <div class="p-6">
+                <!-- Dashboard Header -->
+                <div class="mb-8">
+                    <h1 class="text-2xl md:text-3xl font-bold text-gray-800 dark:text-white">{{ activeTab | capitalize }} Dashboard</h1>
+                    <p class="text-gray-600 dark:text-gray-300 mt-1">
+                        {{ activeTab === 'products' ? 'Manage your product inventory and listings' : 
+                           activeTab === 'orders' ? 'Process and fulfill customer orders' : 
+                           activeTab === 'reports' ? 'View your store performance metrics' : 
+                           activeTab === 'media' ? 'Manage your product images and media library' : 
+                           'Manage store operations' }}
+                    </p>
+                </div>
+                
+                <!-- Summary Stats Bar -->
+                <transition name="fade" mode="out-in">
+                    <div v-if="activeTab === 'dashboard'" class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                        <div class="dashboard-card bg-white dark:bg-dark-card rounded-lg shadow p-5">
+                            <div class="flex items-center">
+                                <div class="p-3 rounded-lg bg-blue-100 dark:bg-blue-900/50 mr-4">
+                                    <i class="fa-solid fa-box text-blue-600 dark:text-blue-400 text-xl"></i>
+                                </div>
+                                <div>
+                                    <h3 class="text-gray-500 dark:text-gray-400 text-sm">Total Products</h3>
+                                    <p class="text-2xl font-bold dark:text-white">{{ summaryStats.products }}</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="dashboard-card bg-white dark:bg-dark-card rounded-lg shadow p-5">
+                            <div class="flex items-center">
+                                <div class="p-3 rounded-lg bg-green-100 dark:bg-green-900/50 mr-4">
+                                    <i class="fa-solid fa-shopping-cart text-green-600 dark:text-green-400 text-xl"></i>
+                                </div>
+                                <div>
+                                    <h3 class="text-gray-500 dark:text-gray-400 text-sm">Orders Today</h3>
+                                    <p class="text-2xl font-bold dark:text-white">{{ summaryStats.ordersToday }}</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="dashboard-card bg-white dark:bg-dark-card rounded-lg shadow p-5">
+                            <div class="flex items-center">
+                                <div class="p-3 rounded-lg bg-yellow-100 dark:bg-yellow-900/50 mr-4">
+                                    <i class="fa-solid fa-chart-line text-yellow-600 dark:text-yellow-400 text-xl"></i>
+                                </div>
+                                <div>
+                                    <h3 class="text-gray-500 dark:text-gray-400 text-sm">This Month Sales</h3>
+                                    <p class="text-2xl font-bold dark:text-white">${{ summaryStats.monthlySales }}</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="dashboard-card bg-white dark:bg-dark-card rounded-lg shadow p-5">
+                            <div class="flex items-center">
+                                <div class="p-3 rounded-lg bg-red-100 dark:bg-red-900/50 mr-4">
+                                    <i class="fa-solid fa-exclamation-triangle text-red-600 dark:text-red-400 text-xl"></i>
+                                </div>
+                                <div>
+                                    <h3 class="text-gray-500 dark:text-gray-400 text-sm">Low Stock Items</h3>
+                                    <p class="text-2xl font-bold dark:text-white">{{ summaryStats.lowStockItems }}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </transition>
+
+                <!-- Tab Content -->
+                <div class="bg-white dark:bg-dark-card rounded-lg shadow">
+                    <!-- Products Tab -->
+                    <transition name="fade" mode="out-in">
+                        <div v-if="activeTab === 'products'">
+                            <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex flex-col md:flex-row md:items-center justify-between">
+                                <h2 class="text-xl font-semibold text-gray-800 dark:text-white mb-2 md:mb-0">Product Catalog</h2>
+                                <div class="flex items-center space-x-3">
+                                    <div class="relative">
+                                        <input type="text" v-model="productSearch" placeholder="Search products..." 
+                                               class="pl-10 pr-4 py-2 border rounded-lg dark:bg-gray-800 dark:border-gray-700 dark:text-white w-full md:w-64">
+                                        <i class="fa-solid fa-search absolute left-3 top-3 text-gray-400"></i>
+                                    </div>
+                                    <button @click="isAddingProduct = true" class="bg-primary hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center">
+                                        <i class="fa-solid fa-plus mr-2"></i>
+                                        <span>Add Product</span>
+                                    </button>
+                                    <button @click="exportProducts" class="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 px-3 py-2 rounded-lg">
+                                        <i class="fa-solid fa-file-export"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- Products Table -->
+                            <div class="overflow-x-auto">
+                                <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                                    <thead class="bg-gray-50 dark:bg-gray-800">
+                                        <tr>
+                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                                Product
+                                            </th>
+                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                                SKU
+                                            </th>
+                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                                Stock
+                                            </th>
+                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                                Price
+                                            </th>
+                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                                Categories
+                                            </th>
+                                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                                Actions
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="bg-white divide-y divide-gray-200 dark:bg-dark-card dark:divide-gray-700">
+                                        <tr v-for="product in filteredProducts" :key="product.id" class="product-row">
+                                            <td class="px-6 py-4 whitespace-nowrap">
+                                                <div class="flex items-center">
+                                                    <div class="flex-shrink-0 h-10 w-10">
+                                                        <img class="h-10 w-10 rounded-md object-cover" :src="product.thumbnail" :alt="product.title">
+                                                    </div>
+                                                    <div class="ml-4">
+                                                        <div class="text-sm font-medium text-gray-900 dark:text-white">{{ product.title }}</div>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                                                {{ product.sku }}
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap">
+                                                <span :class="{
+                                                    'px-2 inline-flex text-xs leading-5 font-semibold rounded-full': true,
+                                                    'bg-red-100 text-red-800': product.stock === 0,
+                                                    'bg-yellow-100 text-yellow-800': product.stock > 0 && product.stock < 10,
+                                                    'bg-green-100 text-green-800': product.stock >= 10
+                                                }">
+                                                    {{ product.stock }} in stock
+                                                </span>
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                                                ${{ product.price }}
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                                                <div class="flex flex-wrap gap-1">
+                                                    <span v-for="(category, index) in product.categories" :key="index"
+                                                        class="bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded text-xs">
+                                                        {{ category }}
+                                                    </span>
+                                                </div>
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                                <button @click="editProduct(product)" class="text-blue-600 hover:text-blue-900 mr-3">
+                                                    <i class="fa-solid fa-pen"></i>
+                                                </button>
+                                                <button @click="deleteProduct(product)" class="text-red-600 hover:text-red-900">
+                                                    <i class="fa-solid fa-trash"></i>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            
+                            <!-- Bulk Actions -->
+                            <div class="bg-gray-50 dark:bg-gray-800 px-6 py-4 border-t border-gray-200 dark:border-gray-700 flex flex-wrap gap-3">
+                                <select v-model="bulkAction" class="border rounded px-3 py-2 text-sm dark:bg-gray-700 dark:text-white dark:border-gray-600">
+                                    <option value="">Bulk Actions</option>
+                                    <option value="increase">Increase Price</option>
+                                    <option value="decrease">Decrease Price</option>
+                                    <option value="manage_stock">Manage Stock</option>
+                                    <option value="change_category">Change Category</option>
+                                    <option value="delete">Delete Products</option>
+                                </select>
+                                
+                                <div v-if="bulkAction === 'increase' || bulkAction === 'decrease'" class="flex items-center gap-2">
+                                    <span>by</span>
+                                    <input type="number" v-model="priceAdjustment.amount" class="border rounded px-3 py-2 w-20 text-sm dark:bg-gray-700 dark:text-white dark:border-gray-600">
+                                    <select v-model="priceAdjustment.type" class="border rounded px-3 py-2 text-sm dark:bg-gray-700 dark:text-white dark:border-gray-600">
+                                        <option value="percent">%</option>
+                                        <option value="fixed">$</option>
+                                    </select>
+                                </div>
+                                
+                                <button @click="applyBulkAction" class="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 px-4 py-2 rounded text-sm">
+                                    Apply
+                                </button>
+                            </div>
+                        </div>
+                    </transition>
+
+                    <!-- Orders Tab -->
+                    <transition name="fade" mode="out-in">
+                        <div v-if="activeTab === 'orders'">
+                            <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex flex-col md:flex-row md:items-center justify-between">
+                                <h2 class="text-xl font-semibold text-gray-800 dark:text-white">Recent Orders</h2>
+                                <div class="flex items-center space-x-3 mt-3 md:mt-0">
+                                    <select v-model="orderFilter" class="border rounded px-3 py-2 text-sm dark:bg-gray-700 dark:text-white dark:border-gray-600">
+                                        <option value="all">All Orders</option>
+                                        <option value="pending">Pending</option>
+                                        <option value="processing">Processing</option>
+                                        <option value="completed">Completed</option>
+                                        <option value="cancelled">Cancelled</option>
+                                    </select>
+                                    <div class="relative">
+                                        <input type="date" v-model="orderDate" class="pl-10 pr-4 py-2 border rounded-lg dark:bg-gray-800 dark:border-gray-700 dark:text-white w-full md:w-48">
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Orders Table -->
+                            <div class="overflow-x-auto">
+                                <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                                    <thead class="bg-gray-50 dark:bg-gray-800">
+                                        <tr>
+                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                                Order
+                                            </th>
+                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                                Date
+                                            </th>
+                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                                Customer
+                                            </th>
+                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                                Total
+                                            </th>
+                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                                Status
+                                            </th>
+                                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                                Actions
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="bg-white divide-y divide-gray-200 dark:bg-dark-card dark:divide-gray-700">
+                                        <tr v-for="order in filteredOrders" :key="order.id">
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+                                                #{{ order.id }}
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                                                {{ formatDate(order.date) }}
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                                                {{ order.customer }}
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                                                ${{ order.total }}
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap">
+                                                <span :class="{
+                                                    'px-2 inline-flex text-xs leading-5 font-semibold rounded-full': true,
+                                                    'bg-yellow-100 text-yellow-800': order.status === 'pending',
+                                                    'bg-blue-100 text-blue-800': order.status === 'processing',
+                                                    'bg-green-100 text-green-800': order.status === 'completed',
+                                                    'bg-red-100 text-red-800': order.status === 'cancelled'
+                                                }">
+                                                    {{ order.status | capitalize }}
+                                                </span>
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                                <button @click="viewOrder(order)" class="text-primary hover:text-blue-900">
+                                                    View Details
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            
+                            <!-- Order Stats -->
+                            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 p-6 border-t border-gray-200 dark:border-gray-700">
+                                <div v-for="stat in orderStats" :key="stat.title" 
+                                     class="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
+                                    <div class="text-gray-500 dark:text-gray-400 text-sm">{{ stat.title }}</div>
+                                    <div class="text-xl font-bold mt-1 dark:text-white">{{ stat.value }}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </transition>
+
+                    <!-- Reports Tab -->
+                    <transition name="fade" mode="out-in">
+                        <div v-if="activeTab === 'reports'">
+                            <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex flex-col md:flex-row md:items-center justify-between">
+                                <h2 class="text-xl font-semibold text-gray-800 dark:text-white">Sales Reports</h2>
+                                <div class="flex items-center space-x-3 mt-3 md:mt-0">
+                                    <select v-model="reportRange" class="border rounded px-3 py-2 text-sm dark:bg-gray-700 dark:text-white dark:border-gray-600">
+                                        <option value="7">Last 7 Days</option>
+                                        <option value="30">Last 30 Days</option>
+                                        <option value="90">Last 90 Days</option>
+                                        <option value="month">This Month</option>
+                                        <option value="year">This Year</option>
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <div class="p-6">
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <!-- Sales Overview -->
+                                    <div class="bg-white dark:bg-gray-800 p-5 rounded-lg shadow">
+                                        <h3 class="text-lg font-medium text-gray-800 dark:text-white mb-4">Sales Overview</h3>
+                                        <div class="space-y-4">
+                                            <div v-for="metric in salesMetrics" :key="metric.title">
+                                                <div class="flex justify-between text-sm mb-1">
+                                                    <span class="text-gray-600 dark:text-gray-300">{{ metric.title }}</span>
+                                                    <span class="font-medium text-gray-800 dark:text-white">{{ metric.value }}</span>
+                                                </div>
+                                                <div class="w-full bg-gray-200 rounded-full h-2 dark:bg-gray-700">
+                                                    <div class="bg-primary h-2 rounded-full" :style="{ width: metric.percent + '%' }"></div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Top Products -->
+                                    <div class="bg-white dark:bg-gray-800 p-5 rounded-lg shadow">
+                                        <h3 class="text-lg font-medium text-gray-800 dark:text-white mb-4">Top Selling Products</h3>
+                                        <ul>
+                                            <li v-for="product in topProducts" :key="product.id" class="py-3 border-b border-gray-200 dark:border-gray-700">
+                                                <div class="flex items-center">
+                                                    <div class="flex-shrink-0 h-10 w-10">
+                                                        <img class="h-10 w-10 rounded-md object-cover" :src="product.thumbnail" :alt="product.title">
+                                                    </div>
+                                                    <div class="ml-4 flex-grow">
+                                                        <div class="text-sm font-medium text-gray-900 dark:text-white">{{ product.title }}</div>
+                                                        <div class="text-sm text-gray-500 dark:text-gray-400">{{ product.sales }} units sold</div>
+                                                    </div>
+                                                    <div class="text-right">
+                                                        <div class="text-sm font-medium text-gray-900 dark:text-white">${{ product.revenue }}</div>
+                                                        <div class="text-sm text-gray-500 dark:text-gray-400">{{ product.percentage }}% of total</div>
+                                                    </div>
+                                                </div>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                </div>
+                                
+                                <!-- Stock Alerts -->
+                                <div class="bg-white dark:bg-gray-800 p-5 rounded-lg shadow mt-6">
+                                    <h3 class="text-lg font-medium text-gray-800 dark:text-white mb-4">Low Stock Alerts</h3>
+                                    <div v-if="lowStockProducts.length" class="overflow-x-auto">
+                                        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                                            <thead>
+                                                <tr>
+                                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Product</th>
+                                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Current Stock</th>
+                                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Last Sale</th>
+                                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Average Weekly Sales</th>
+                                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Projected Out of Stock</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <tr v-for="product in lowStockProducts" :key="product.id" class="text-sm">
+                                                    <td class="px-4 py-3 whitespace-nowrap">
+                                                        <div class="flex items-center">
+                                                            <img class="w-8 h-8 rounded mr-2" :src="product.thumbnail" :alt="product.title">
+                                                            <span class="font-medium dark:text-white">{{ product.title }}</span>
+                                                        </div>
+                                                    </td>
+                                                    <td class="px-4 py-3 whitespace-nowrap">
+                                                        <span class="px-2 py-1 text-xs rounded-full bg-red-100 text-red-800">{{ product.stock }}</span>
+                                                    </td>
+                                                    <td class="px-4 py-3 whitespace-nowrap">{{ formatDate(product.lastSale) }}</td>
+                                                    <td class="px-4 py-3 whitespace-nowrap">{{ product.weeklySales }}</td>
+                                                    <td class="px-4 py-3 whitespace-nowrap">
+                                                        {{ product.projectedStockOut }} days
+                                                        <span v-if="product.projectedStockOut < 7" class="text-red-600">(URGENT)</span>
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    <div v-else class="text-center py-8 text-gray-500">
+                                        <i class="fa-solid fa-check-circle text-green-500 text-3xl mb-3"></i>
+                                        <p>No low stock items!</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </transition>
+
+                    <!-- Media Tab -->
+                    <transition name="fade" mode="out-in">
+                        <div v-if="activeTab === 'media'">
+                            <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex flex-col md:flex-row md:items-center justify-between">
+                                <h2 class="text-xl font-semibold text-gray-800 dark:text-white">Media Library</h2>
+                                <div class="flex items-center space-x-3 mt-3 md:mt-0">
+                                    <div class="relative">
+                                        <input type="text" placeholder="Search media..." 
+                                               class="pl-10 pr-4 py-2 border rounded-lg dark:bg-gray-800 dark:border-gray-700 dark:text-white w-full md:w-64">
+                                        <i class="fa-solid fa-search absolute left-3 top-3 text-gray-400"></i>
+                                    </div>
+                                    <label class="bg-primary hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center cursor-pointer">
+                                        <i class="fa-solid fa-upload mr-2"></i>
+                                        <span>Upload Media</span>
+                                        <input type="file" class="hidden" @change="uploadMedia" multiple>
+                                    </label>
+                                </div>
+                            </div>
+                            
+                            <!-- Media Gallery -->
+                            <div class="p-6">
+                                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                                    <div v-for="(item, index) in mediaItems" :key="index" class="relative group">
+                                        <div class="bg-gray-200 border-2 border-dashed rounded-xl aspect-square flex items-center justify-center overflow-hidden">
+                                            <img :src="item.url" alt="Media" class="w-full h-full object-cover">
+                                        </div>
+                                        <div class="absolute inset-0 bg-black bg-opacity-60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                                            <button @click="deleteMedia(item)" class="text-white mx-1 hover:text-red-500">
+                                                <i class="fa-solid fa-trash"></i>
+                                            </button>
+                                            <button @click="insertMedia(item)" class="text-white mx-1 hover:text-green-500">
+                                                <i class="fa-solid fa-plus"></i>
+                                            </button>
+                                        </div>
+                                        <div class="truncate text-xs mt-2 text-gray-600 dark:text-gray-400">
+                                            {{ item.name }}
+                                        </div>
+                                        <div class="text-xs text-gray-500">
+                                            {{ formatFileSize(item.size) }}
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Upload Progress -->
+                                <div v-if="uploadingMedia" class="mt-8 bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
+                                    <h3 class="font-medium text-gray-800 dark:text-white mb-3">Uploading Files</h3>
+                                    <div v-for="file in uploadQueue" :key="file.id" class="mb-4">
+                                        <div class="flex justify-between text-sm mb-1">
+                                            <span class="text-gray-600 dark:text-gray-300 truncate" :title="file.name">{{ file.name }}</span>
+                                            <span class="text-gray-600 dark:text-gray-300">{{ file.progress }}%</span>
+                                        </div>
+                                        <div class="w-full bg-gray-200 rounded-full h-2 dark:bg-gray-700">
+                                            <div class="bg-primary h-2 rounded-full" :style="{ width: file.progress + '%' }"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </transition>
+                </div>
+                
+                <!-- Dashboard Footer -->
+                <div class="mt-6 text-center text-gray-500 text-sm">
+                    Easy Store Manager Dashboard v1.0 &copy; {{ new Date().getFullYear() }} - Secure frontend management for WooCommerce
+                </div>
+            </div>
+        </div>
+
+        <!-- Modals would go here -->
+    </div>
+
+    <script>
+        const { createApp, ref, reactive, computed, onMounted } = Vue;
+        
+        createApp({
+            setup() {
+                // User data
+                const user = reactive({
+                    name: 'Store Manager',
+                    email: 'manager@example.com',
+                    role: 'store_manager_frontend'
+                });
+                
+                // Generate user initials
+                const userInitials = computed(() => {
+                    const parts = user.name.split(' ');
+                    return parts.map(p => p[0]).join('');
+                });
+                
+                // Navigation
+                const activeTab = ref('dashboard');
+                const sidebarCollapsed = ref(false);
+                const darkMode = ref(false);
+                const tabs = [
+                    { name: 'dashboard', label: 'Dashboard', icon: 'fa-solid fa-gauge-high' },
+                    { name: 'products', label: 'Products', icon: 'fa-solid fa-box' },
+                    { name: 'orders', label: 'Orders', icon: 'fa-solid fa-cart-shopping' },
+                    { name: 'reports', label: 'Reports', icon: 'fa-solid fa-chart-simple' },
+                    { name: 'media', label: 'Media', icon: 'fa-solid fa-images' }
+                ];
+                
+                // Toggle dark mode
+                const toggleDarkMode = () => {
+                    darkMode.value = !darkMode.value;
+                    document.documentElement.classList.toggle('dark', darkMode.value);
+                };
+                
+                // Summary stats for dashboard
+                const summaryStats = reactive({
+                    products: 148,
+                    ordersToday: 24,
+                    monthlySales: 18420,
+                    lowStockItems: 8
+                });
+                
+                // Products data
+                const products = ref([
+                    { id: 1, title: "Premium Headphones", sku: "HD-PRO123", price: 89.99, stock: 15, 
+                     categories: ["Audio", "Electronics"], thumbnail: "https://images.unsplash.com/photo-1505740420928-5e880cde6d88?ixlib=rb-4.0.3&auto=format&fit=crop&w=200&h=200&q=80" },
+                    { id: 2, title: "Wireless Charger", sku: "CHG-WRLS45", price: 29.99, stock: 42, 
+                     categories: ["Accessories", "Electronics"], thumbnail: "https://images.unsplash.com/photo-1586208572998-fc38e37cde08?ixlib=rb-4.0.3&auto=format&fit=crop&w=200&h=200&q=80" },
+                    { id: 3, title: "Smart Watch Series 5", sku: "WATCH-SM5", price: 249.99, stock: 8, 
+                     categories: ["Wearables", "Electronics"], thumbnail: "https://images.unsplash.com/photo-1579586337278-3befd40fd17a?ixlib=rb-4.0.3&auto=format&fit=crop&w=200&h=200&q=80" },
+                    { id: 4, title: "Cotton T-Shirt", sku: "TS-COT01", price: 19.99, stock: 120, 
+                     categories: ["Clothing", "Men"], thumbnail: "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?ixlib=rb-4.0.3&auto=format&fit=crop&w=200&h=200&q=80" },
+                    { id: 5, title: "Leather Wallet", sku: "ACC-WAL01", price: 45.00, stock: 2, 
+                     categories: ["Accessories", "Leather Goods"], thumbnail: "https://images.unsplash.com/photo-1605733513597-a8f8341084e6?ixlib=rb-4.0.3&auto=format&fit=crop&w=200&h=200&q=80" }
+                ]);
+                
+                const productSearch = ref('');
+                const isAddingProduct = ref(false);
+                const bulkAction = ref('');
+                const priceAdjustment = reactive({ amount: 10, type: 'percent' });
+                const pendingOrders = computed(() => {
+                    return orders.value.filter(o => o.status === 'pending').length;
+                });
+                
+                // Orders data
+                const orders = ref([
+                    { id: 1001, date: new Date(), customer: "John Smith", total: 149.97, status: "pending", items: 3 },
+                    { id: 1002, date: new Date(Date.now() - 86400000), customer: "Sarah Johnson", total: 89.99, status: "processing", items: 1 },
+                    { id: 1003, date: new Date(Date.now() - 172800000), customer: "Mike Thompson", total: 299.95, status: "completed", items: 2 },
+                    { id: 1004, date: new Date(Date.now() - 259200000), customer: "Emily Davis", total: 45.00, status: "processing", items: 1 },
+                    { id: 1005, date: new Date(Date.now() - 345600000), customer: "Alex Rodriguez", total: 175.98, status: "completed", items: 4 }
+                ]);
+                
+                const orderFilter = ref('all');
+                const orderDate = ref('');
+                const orderStats = ref([
+                    { title: "Pending Orders", value: 12 },
+                    { title: "Processing", value: 8 },
+                    { title: "Completed Today", value: 24 },
+                    { title: "Revenue Today", value: "$1,850" }
+                ]);
+                
+                // Reports data
+                const reportRange = ref('7');
+                const salesMetrics = ref([
+                    { title: "Today", value: "$850", percent: 30 },
+                    { title: "Week to Date", value: "$4,210", percent: 65 },
+                    { title: "Month to Date", value: "$18,420", percent: 42 },
+                    { title: "Year to Date", value: "$147,580", percent: 75 }
+                ]);
+                
+                const topProducts = ref([
+                    { id: 1, title: "Premium Headphones", sales: 48, revenue: "4,319.52", percentage: 32, 
+                     thumbnail: "https://images.unsplash.com/photo-1505740420928-5e880cde6d88?ixlib=rb-4.0.3&auto=format&fit=crop&w=200&h=200&q=80" },
+                    { id: 2, title: "Smart Watch Series 5", sales: 32, revenue: "7,999.68", percentage: 26, 
+                     thumbnail: "https://images.unsplash.com/photo-1579586337278-3befd40fd17a?ixlib=rb-4.0.3&auto=format&fit=crop&w=200&h=200&q=80" },
+                    { id: 3, title: "Wireless Charger", sales: 60, revenue: "1,799.40", percentage: 18, 
+                     thumbnail: "https://images.unsplash.com/photo-1586208572998-fc38e37cde08?ixlib=rb-4.0.3&auto=format&fit=crop&w=200&h=200&q=80" }
+                ]);
+                
+                const lowStockProducts = ref([
+                    { id: 5, title: "Leather Wallet", stock: 2, lastSale: new Date(Date.now() - 86400000), weeklySales: 7, projectedStockOut: 3,
+                     thumbnail: "https://images.unsplash.com/photo-1605733513597-a8f8341084e6?ixlib=rb-4.0.3&auto=format&fit=crop&w=200&h=200&q=80" },
+                    { id: 7, title: "Bluetooth Speaker", stock: 5, lastSale: new Date(Date.now() - 259200000), weeklySales: 4, projectedStockOut: 9,
+                     thumbnail: "https://images.unsplash.com/photo-1546435770-a2e5d173fe4a?ixlib=rb-4.0.3&auto=format&fit=crop&w=200&h=200&q=80" }
+                ]);
+                
+                // Media data
+                const mediaItems = ref([
+                    { id: 1, name: "product-1.jpg", type: "image/jpeg", size: 285643, url: "https://images.unsplash.com/photo-1505740420928-5e880cde6d88?ixlib=rb-4.0.3&auto=format&fit=crop&w=200&h=200&q=80" },
+                    { id: 2, name: "watch-product.jpg", type: "image/jpeg", size: 317521, url: "https://images.unsplash.com/photo-1579586337278-3befd40fd17a?ixlib=rb-4.0.3&auto=format&fit=crop&w=200&h=200&q=80" },
+                    { id: 3, name: "charger-product.png", type: "image/png", size: 187345, url: "https://images.unsplash.com/photo-1586208572998-fc38e37cde08?ixlib=rb-4.0.3&auto=format&fit=crop&w=200&h=200&q=80" },
+                    { id: 4, name: "tshirt-product.jpg", type: "image/jpeg", size: 230891, url: "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?ixlib=rb-4.0.3&auto=format&fit=crop&w=200&h=200&q=80" },
+                    { id: 5, name: "wallet-product.jpg", type: "image/jpeg", size: 301289, url: "https://images.unsplash.com/photo-1605733513597-a8f8341084e6?ixlib=rb-4.0.3&auto=format&fit=crop&w=200&h=200&q=80" },
+                    { id: 6, name: "banner-promo.jpg", type: "image/jpeg", size: 428765, url: "https://images.unsplash.com/photo-1557683311-eac922347aa1?ixlib=rb-4.0.3&auto=format&fit=crop&w=200&h=200&q=80" }
+                ]);
+                
+                const uploadingMedia = ref(false);
+                const uploadQueue = ref([]);
+                
+                // Computed properties
+                const filteredProducts = computed(() => {
+                    const searchTerm = productSearch.value.toLowerCase();
+                    return products.value.filter(p => 
+                        p.title.toLowerCase().includes(searchTerm) ||
+                        p.sku.toLowerCase().includes(searchTerm)
+                    );
+                });
+                
+                const filteredOrders = computed(() => {
+                    return orders.value.filter(order => {
+                        const matchesStatus = orderFilter.value === 'all' || order.status === orderFilter.value;
+                        const matchesDate = !orderDate.value || new Date(order.date).toDateString() === new Date(orderDate.value).toDateString();
+                        return matchesStatus && matchesDate;
+                    });
+                });
+                
+                // Methods
+                function formatDate(date) {
+                    return new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                }
+                
+                function formatFileSize(bytes) {
+                    if (bytes < 1024) return bytes + " bytes";
+                    else if (bytes < 1048576) return (bytes / 1024).toFixed(1) + " KB";
+                    else return (bytes / 1048576).toFixed(1) + " MB";
+                }
+                
+                function editProduct(product) {
+                    // In real app, this would open a modal with form
+                    alert(`Editing product: ${product.title}`);
+                }
+                
+                function deleteProduct(product) {
+                    if (confirm(`Are you sure you want to delete "${product.title}"?`)) {
+                        products.value = products.value.filter(p => p.id !== product.id);
+                    }
+                }
+                
+                function viewOrder(order) {
+                    // In real app, this would open a modal with order details
+                    alert(`Viewing order #${order.id} for ${order.customer}`);
+                }
+                
+                function exportProducts() {
+                    // Simulate CSV export
+                    alert("Exporting products to CSV...");
+                }
+                
+                function applyBulkAction() {
+                    if (!bulkAction.value) {
+                        alert("Please select a bulk action");
+                        return;
+                    }
+                    
+                    if (bulkAction.value === 'delete') {
+                        if (confirm("Are you sure you want to delete selected products?")) {
+                            // In a real app, we'd have selected products
+                            alert("Products deleted (simulated)");
+                        }
+                    } else {
+                        alert(`Bulk action applied: ${bulkAction.value}`);
+                    }
+                    
+                    bulkAction.value = '';
+                }
+                
+                function uploadMedia(event) {
+                    const files = Array.from(event.target.files);
+                    if (!files.length) return;
+                    
+                    uploadingMedia.value = true;
+                    
+                    // Simulate upload
+                    files.forEach((file, index) => {
+                        const upload = {
+                            id: Date.now() + index,
+                            name: file.name,
+                            size: file.size,
+                            progress: 0
+                        };
+                        
+                        uploadQueue.value.push(upload);
+                        
+                        const interval = setInterval(() => {
+                            upload.progress += 10;
+                            if (upload.progress >= 100) {
+                                clearInterval(interval);
+                                setTimeout(() => {
+                                    mediaItems.value.push({
+                                        id: Date.now() + Math.random(),
+                                        name: file.name,
+                                        type: file.type,
+                                        size: file.size,
+                                        url: URL.createObjectURL(file)
+                                    });
+                                }, 300);
+                            }
+                        }, 200);
+                    });
+                    
+                    // Clear file input
+                    event.target.value = '';
+                }
+                
+                function deleteMedia(item) {
+                    if (confirm(`Delete "${item.name}"?`)) {
+                        mediaItems.value = mediaItems.value.filter(m => m.id !== item.id);
+                    }
+                }
+                
+                function insertMedia(item) {
+                    alert(`Inserting media: ${item.name}`);
+                }
+                
+                // Setup on mounted
+                onMounted(() => {
+                    // Detect dark mode preference
+                    darkMode.value = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                    document.documentElement.classList.toggle('dark', darkMode.value);
+                });
+                
+                return {
+                    user,
+                    userInitials,
+                    activeTab,
+                    sidebarCollapsed,
+                    darkMode,
+                    tabs,
+                    summaryStats,
+                    products,
+                    productSearch,
+                    filteredProducts,
+                    isAddingProduct,
+                    editProduct,
+                    deleteProduct,
+                    exportProducts,
+                    pendingOrders,
+                    orders,
+                    orderFilter,
+                    orderDate,
+                    filteredOrders,
+                    orderStats,
+                    viewOrder,
+                    formatDate,
+                    reportRange,
+                    salesMetrics,
+                    topProducts,
+                    lowStockProducts,
+                    mediaItems,
+                    uploadMedia,
+                    uploadingMedia,
+                    uploadQueue,
+                    deleteMedia,
+                    insertMedia,
+                    formatFileSize,
+                    bulkAction,
+                    priceAdjustment,
+                    applyBulkAction,
+                    toggleDarkMode
+                };
+            },
+            filters: {
+                capitalize(value) {
+                    if (!value) return '';
+                    value = value.toString();
+                    return value.charAt(0).toUpperCase() + value.slice(1);
+                }
+            }
+        }).mount('#app');
+    </script>
+                capitalize(value) {
+                    if (!value) return '';
+                    value = value.toString();
+                    return value.charAt(0).toUpperCase() + value.slice(1);
+                \}
+            \}
+        \}).mount('#app');
+    </script>
+</body>
+</html>
+596    <script>
+AI's plan
+
+
+Ask DeepSite for edits
+
+Settings
+
+REQUIRED
+Login with Hugging Face
+You reached the limit of free AI usage. Please login to continue.
+
+Sign in with Hugging Face
+PRO
+Your free inference quota is exhausted
+Upgrade to a PRO account to activate Inference Providers and continue using DeepSite.
+
+It also unlocks thousands of Space apps powered by ZeroGPU for 3d, audio, music, video and more!
+
+Subscribe to PRO (\$9/month)
+$0
+</body>
+</html>
