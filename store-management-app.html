@@ -1,13 +1,185 @@
-<div id="store-management-app" class="bg-gray-100 min-h-screen">
-  <!-- Vue app will mount here -->
-  <div class="flex items-center justify-center min-h-screen">
-    <div class="p-6 bg-white rounded-lg shadow-lg text-center">
-      <svg class="mx-auto h-12 w-12 text-blue-500 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-      </svg>
-      <p class="mt-4 text-lg font-medium text-gray-700">Loading Store Management Dashboard...</p>
-      <p class="text-sm text-gray-500">Please wait a moment.</p>
+<div id="store-management-app" class="bg-gray-50 min-h-screen">
+  <!-- Loading State -->
+  <div v-if="isLoading" class="flex items-center justify-center min-h-screen">
+    <div class="p-8 bg-white rounded-xl shadow-lg text-center max-w-md mx-auto">
+      <div class="relative">
+        <svg class="mx-auto h-16 w-16 text-blue-600 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        <div class="absolute inset-0 flex items-center justify-center">
+          <div class="w-3 h-3 bg-blue-600 rounded-full animate-pulse"></div>
+        </div>
+      </div>
+      <h2 class="mt-6 text-xl font-semibold text-gray-800">Loading Store Management Dashboard</h2>
+      <p class="mt-2 text-sm text-gray-600">Initializing your workspace...</p>
+      <div class="mt-4 w-full bg-gray-200 rounded-full h-2">
+        <div class="bg-blue-600 h-2 rounded-full animate-pulse" style="width: 70%"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Error State -->
+  <div v-else-if="hasError" class="flex items-center justify-center min-h-screen">
+    <div class="p-8 bg-white rounded-xl shadow-lg text-center max-w-md mx-auto border-l-4 border-red-500">
+      <div class="mx-auto h-16 w-16 text-red-500 mb-4">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.268 18.5c-.77.833.192 2.5 1.732 2.5z"></path>
+        </svg>
+      </div>
+      <h2 class="text-xl font-semibold text-gray-800 mb-2">Unable to Load Dashboard</h2>
+      <p class="text-sm text-gray-600 mb-4">{{ errorMessage }}</p>
+      <button @click="retryInitialization" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+        Try Again
+      </button>
+    </div>
+  </div>
+
+  <!-- Main Application -->
+  <div v-else class="flex h-screen bg-gray-50">
+    <!-- Sidebar -->
+    <div class="w-64 bg-white shadow-lg border-r border-gray-200">
+      <div class="p-6 border-b border-gray-200">
+        <h1 class="text-xl font-bold text-gray-800">Store Manager</h1>
+        <p class="text-sm text-gray-600 mt-1">Dashboard</p>
+      </div>
+      
+      <nav class="mt-6">
+        <div class="px-3">
+          <ul class="space-y-1">
+            <li>
+              <a @click="setActiveView('products')" 
+                 :class="['flex items-center px-3 py-2 text-sm font-medium rounded-lg cursor-pointer transition-colors', 
+                         activeView === 'products' ? 'bg-blue-100 text-blue-700' : 'text-gray-700 hover:bg-gray-100']">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+                </svg>
+                Products
+              </a>
+            </li>
+            <li>
+              <a @click="setActiveView('orders')" 
+                 :class="['flex items-center px-3 py-2 text-sm font-medium rounded-lg cursor-pointer transition-colors', 
+                         activeView === 'orders' ? 'bg-blue-100 text-blue-700' : 'text-gray-700 hover:bg-gray-100']">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                </svg>
+                Orders
+              </a>
+            </li>
+            <li>
+              <a @click="setActiveView('reports')" 
+                 :class="['flex items-center px-3 py-2 text-sm font-medium rounded-lg cursor-pointer transition-colors', 
+                         activeView === 'reports' ? 'bg-blue-100 text-blue-700' : 'text-gray-700 hover:bg-gray-100']">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                </svg>
+                Reports
+              </a>
+            </li>
+          </ul>
+        </div>
+      </nav>
+
+      <!-- User Info -->
+      <div class="absolute bottom-0 w-64 p-4 border-t border-gray-200 bg-white">
+        <div class="flex items-center">
+          <div class="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
+            <span class="text-white text-sm font-medium">{{ userInitials }}</span>
+          </div>
+          <div class="ml-3">
+            <p class="text-sm font-medium text-gray-700">Store Manager</p>
+            <p class="text-xs text-gray-500">Online</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="flex-1 flex flex-col overflow-hidden">
+      <!-- Header -->
+      <header class="bg-white shadow-sm border-b border-gray-200 px-6 py-4">
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="text-2xl font-semibold text-gray-800 capitalize">{{ activeView }}</h2>
+            <p class="text-sm text-gray-600 mt-1">{{ getViewDescription() }}</p>
+          </div>
+          <div class="flex items-center space-x-4">
+            <!-- Notifications -->
+            <button class="relative p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-5 5v-5z"></path>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6a2 2 0 012 2v8a2 2 0 01-2 2H9l-4-4V9a2 2 0 012-2z"></path>
+              </svg>
+              <span v-if="notifications.length > 0" class="absolute -top-1 -right-1 h-4 w-4 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
+                {{ notifications.length }}
+              </span>
+            </button>
+            
+            <!-- Refresh -->
+            <button @click="refreshCurrentView" class="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <!-- Content Area -->
+      <main class="flex-1 overflow-auto bg-gray-50">
+        <div class="p-6">
+          <!-- Products View -->
+          <div v-if="activeView === 'products'" id="products-view">
+            <!-- Products content will be rendered here -->
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <h3 class="text-lg font-medium text-gray-900 mb-4">Product Management</h3>
+              <p class="text-gray-600">Product management interface will be loaded here.</p>
+            </div>
+          </div>
+
+          <!-- Orders View -->
+          <div v-else-if="activeView === 'orders'" id="orders-view">
+            <!-- Orders content will be rendered here -->
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <h3 class="text-lg font-medium text-gray-900 mb-4">Order Management</h3>
+              <p class="text-gray-600">Order management interface will be loaded here.</p>
+            </div>
+          </div>
+
+          <!-- Reports View -->
+          <div v-else-if="activeView === 'reports'" id="reports-view">
+            <!-- Reports content will be rendered here -->
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <h3 class="text-lg font-medium text-gray-900 mb-4">Reports & Analytics</h3>
+              <p class="text-gray-600">Reports and analytics interface will be loaded here.</p>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- Global Notifications -->
+  <div v-if="globalNotification" class="fixed top-4 right-4 z-50">
+    <div :class="['p-4 rounded-lg shadow-lg max-w-sm', 
+                  globalNotification.type === 'success' ? 'bg-green-500 text-white' : 
+                  globalNotification.type === 'error' ? 'bg-red-500 text-white' : 
+                  'bg-blue-500 text-white']">
+      <div class="flex items-center">
+        <svg v-if="globalNotification.type === 'success'" class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+          <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+        </svg>
+        <svg v-else-if="globalNotification.type === 'error'" class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+          <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path>
+        </svg>
+        <span>{{ globalNotification.message }}</span>
+        <button @click="globalNotification = null" class="ml-2 text-white hover:text-gray-200">
+          <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+          </svg>
+        </button>
+      </div>
     </div>
   </div>
 </div>
